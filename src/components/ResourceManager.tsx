@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { classroomsApi, laboratoriesApi } from "../api/resources";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -107,9 +108,36 @@ const ResourceManager = () => {
   ];
 
   // State
-  const [classrooms, setClassrooms] = useState<Classroom[]>(defaultClassrooms);
-  const [laboratories, setLaboratories] =
-    useState<Laboratory[]>(defaultLaboratories);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [laboratories, setLaboratories] = useState<Laboratory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load data from database
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [classroomsData, laboratoriesData] = await Promise.all([
+          classroomsApi.getAll(),
+          laboratoriesApi.getAll(),
+        ]);
+        setClassrooms(
+          classroomsData.length > 0 ? classroomsData : defaultClassrooms,
+        );
+        setLaboratories(
+          laboratoriesData.length > 0 ? laboratoriesData : defaultLaboratories,
+        );
+      } catch (error) {
+        console.error("Error loading resources:", error);
+        // Fallback to default data
+        setClassrooms(defaultClassrooms);
+        setLaboratories(defaultLaboratories);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isAddClassroomDialogOpen, setIsAddClassroomDialogOpen] =
     useState<boolean>(false);
@@ -165,51 +193,93 @@ const ResourceManager = () => {
   );
 
   // Handlers for classroom operations
-  const handleAddClassroom = () => {
-    const newId = (classrooms.length + 1).toString();
-    setClassrooms([...classrooms, { id: newId, ...newClassroom }]);
-    setNewClassroom({ name: "", capacity: 0, equipment: [] });
-    setIsAddClassroomDialogOpen(false);
-  };
-
-  const handleEditClassroom = () => {
-    if (editingClassroom) {
-      setClassrooms(
-        classrooms.map((classroom) =>
-          classroom.id === editingClassroom.id ? editingClassroom : classroom,
-        ),
-      );
-      setEditingClassroom(null);
-      setIsEditClassroomDialogOpen(false);
+  const handleAddClassroom = async () => {
+    try {
+      const createdClassroom = await classroomsApi.create(newClassroom);
+      setClassrooms([...classrooms, createdClassroom]);
+      setNewClassroom({ name: "", capacity: 0, equipment: [] });
+      setIsAddClassroomDialogOpen(false);
+    } catch (error) {
+      console.error("Error creating classroom:", error);
     }
   };
 
-  const handleDeleteClassroom = (id: string) => {
-    setClassrooms(classrooms.filter((classroom) => classroom.id !== id));
+  const handleEditClassroom = async () => {
+    if (editingClassroom) {
+      try {
+        const updatedClassroom = await classroomsApi.update(
+          editingClassroom.id,
+          {
+            name: editingClassroom.name,
+            capacity: editingClassroom.capacity,
+            equipment: editingClassroom.equipment,
+          },
+        );
+        setClassrooms(
+          classrooms.map((classroom) =>
+            classroom.id === editingClassroom.id ? updatedClassroom : classroom,
+          ),
+        );
+        setEditingClassroom(null);
+        setIsEditClassroomDialogOpen(false);
+      } catch (error) {
+        console.error("Error updating classroom:", error);
+      }
+    }
+  };
+
+  const handleDeleteClassroom = async (id: string) => {
+    try {
+      await classroomsApi.delete(id);
+      setClassrooms(classrooms.filter((classroom) => classroom.id !== id));
+    } catch (error) {
+      console.error("Error deleting classroom:", error);
+    }
   };
 
   // Handlers for laboratory operations
-  const handleAddLaboratory = () => {
-    const newId = (laboratories.length + 1).toString();
-    setLaboratories([...laboratories, { id: newId, ...newLaboratory }]);
-    setNewLaboratory({ name: "", capacity: 0, equipment: [] });
-    setIsAddLabDialogOpen(false);
-  };
-
-  const handleEditLaboratory = () => {
-    if (editingLaboratory) {
-      setLaboratories(
-        laboratories.map((lab) =>
-          lab.id === editingLaboratory.id ? editingLaboratory : lab,
-        ),
-      );
-      setEditingLaboratory(null);
-      setIsEditLabDialogOpen(false);
+  const handleAddLaboratory = async () => {
+    try {
+      const createdLaboratory = await laboratoriesApi.create(newLaboratory);
+      setLaboratories([...laboratories, createdLaboratory]);
+      setNewLaboratory({ name: "", capacity: 0, equipment: [] });
+      setIsAddLabDialogOpen(false);
+    } catch (error) {
+      console.error("Error creating laboratory:", error);
     }
   };
 
-  const handleDeleteLaboratory = (id: string) => {
-    setLaboratories(laboratories.filter((lab) => lab.id !== id));
+  const handleEditLaboratory = async () => {
+    if (editingLaboratory) {
+      try {
+        const updatedLaboratory = await laboratoriesApi.update(
+          editingLaboratory.id,
+          {
+            name: editingLaboratory.name,
+            capacity: editingLaboratory.capacity,
+            equipment: editingLaboratory.equipment,
+          },
+        );
+        setLaboratories(
+          laboratories.map((lab) =>
+            lab.id === editingLaboratory.id ? updatedLaboratory : lab,
+          ),
+        );
+        setEditingLaboratory(null);
+        setIsEditLabDialogOpen(false);
+      } catch (error) {
+        console.error("Error updating laboratory:", error);
+      }
+    }
+  };
+
+  const handleDeleteLaboratory = async (id: string) => {
+    try {
+      await laboratoriesApi.delete(id);
+      setLaboratories(laboratories.filter((lab) => lab.id !== id));
+    } catch (error) {
+      console.error("Error deleting laboratory:", error);
+    }
   };
 
   // Equipment selection handlers

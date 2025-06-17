@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../hooks/useAuth";
+import { coursesApi } from "../api/courses";
+import { classroomsApi, laboratoriesApi } from "../api/resources";
+import { schedulesApi } from "../api/schedules";
 import {
   Card,
   CardContent,
@@ -23,6 +27,7 @@ import ScheduleCalendar from "./ScheduleCalendar";
 import CourseForm from "./CourseForm";
 import AvailabilitySelector from "./AvailabilitySelector";
 import ResourceManager from "./ResourceManager";
+import ScenarioForm from "./ScenarioForm";
 
 type UserRole = "administrator" | "schedule_manager" | "educator";
 
@@ -35,21 +40,57 @@ interface User {
 }
 
 const Home = () => {
-  // Mock user data - in a real app, this would come from authentication
-  const [currentUser, setCurrentUser] = useState<User>({
-    id: "1",
-    name: "John Doe",
-    email: "john.doe@university.edu",
-    role: "administrator",
-    avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=john",
-  });
-
+  const { user: currentUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [dashboardData, setDashboardData] = useState({
+    courses: [],
+    classrooms: [],
+    laboratories: [],
+    scheduleEvents: [],
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Function to switch user role for demo purposes
-  const switchRole = (role: UserRole) => {
-    setCurrentUser({ ...currentUser, role });
+  // Load dashboard data
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const [courses, classrooms, laboratories, scheduleEvents] =
+          await Promise.all([
+            coursesApi.getAll(),
+            classroomsApi.getAll(),
+            laboratoriesApi.getAll(),
+            schedulesApi.getAll(),
+          ]);
+
+        setDashboardData({
+          courses,
+          classrooms,
+          laboratories,
+          scheduleEvents,
+        });
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (currentUser) {
+      loadDashboardData();
+    }
+  }, [currentUser]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
   };
+
+  if (!currentUser) {
+    return null; // This should not happen due to ProtectedRoute, but just in case
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -88,6 +129,17 @@ const Home = () => {
             >
               <BookOpen className="mr-2 h-4 w-4" />
               Courses
+            </Button>
+          )}
+
+          {currentUser.role === "educator" && (
+            <Button
+              variant={activeTab === "scenarios" ? "default" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActiveTab("scenarios")}
+            >
+              <BookOpen className="mr-2 h-4 w-4" />
+              Scenarios
             </Button>
           )}
 
@@ -136,47 +188,19 @@ const Home = () => {
         </nav>
 
         <div className="mt-auto pt-4 border-t">
-          {/* Role switcher for demo purposes */}
+          {/* User role display */}
           <div className="mb-4">
             <p className="text-xs text-muted-foreground mb-2">
-              Demo: Switch Role
+              Role:{" "}
+              {currentUser.role
+                .replace("_", " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase())}
             </p>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant={
-                  currentUser.role === "administrator" ? "default" : "outline"
-                }
-                onClick={() => switchRole("administrator")}
-              >
-                Admin
-              </Button>
-              <Button
-                size="sm"
-                variant={
-                  currentUser.role === "schedule_manager"
-                    ? "default"
-                    : "outline"
-                }
-                onClick={() => switchRole("schedule_manager")}
-              >
-                Manager
-              </Button>
-              <Button
-                size="sm"
-                variant={
-                  currentUser.role === "educator" ? "default" : "outline"
-                }
-                onClick={() => switchRole("educator")}
-              >
-                Educator
-              </Button>
-            </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Avatar>
-              <AvatarImage src={currentUser.avatarUrl} />
+              <AvatarImage src={currentUser.avatar_url} />
               <AvatarFallback>
                 {currentUser.name.substring(0, 2).toUpperCase()}
               </AvatarFallback>
@@ -187,7 +211,7 @@ const Home = () => {
                 {currentUser.email}
               </p>
             </div>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -202,6 +226,7 @@ const Home = () => {
             {activeTab === "dashboard" && "Dashboard"}
             {activeTab === "schedule" && "Schedule Calendar"}
             {activeTab === "courses" && "Course Management"}
+            {activeTab === "scenarios" && "Scenario Management"}
             {activeTab === "availability" && "Availability Preferences"}
             {activeTab === "resources" && "Resource Management"}
             {activeTab === "users" && "User Management"}
@@ -211,6 +236,8 @@ const Home = () => {
             {activeTab === "dashboard" && "Overview of your timetabling system"}
             {activeTab === "schedule" && "View and manage course schedules"}
             {activeTab === "courses" && "Create and edit courses"}
+            {activeTab === "scenarios" &&
+              "Create and manage schedule scenarios"}
             {activeTab === "availability" &&
               "Set your weekly availability preferences"}
             {activeTab === "resources" && "Manage classrooms and laboratories"}
@@ -326,6 +353,12 @@ const Home = () => {
         {activeTab === "courses" && (
           <div className="bg-card rounded-lg border shadow-sm p-6">
             <CourseForm />
+          </div>
+        )}
+
+        {activeTab === "scenarios" && (
+          <div className="bg-card rounded-lg border shadow-sm p-6">
+            <ScenarioForm />
           </div>
         )}
 

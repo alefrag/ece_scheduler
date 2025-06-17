@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { availabilityApi } from "../api/availability";
+import { useAuth } from "../hooks/useAuth";
 import {
   Card,
   CardContent,
@@ -67,6 +69,8 @@ const AvailabilitySelector: React.FC<AvailabilitySelectorProps> = ({
   onSave = () => {},
   initialAvailability = {},
 }) => {
+  const { user } = useAuth();
+
   // Initialize availability with neutral values or provided initial values
   const [availability, setAvailability] = useState<
     Record<string, PreferenceLevel>
@@ -80,6 +84,38 @@ const AvailabilitySelector: React.FC<AvailabilitySelectorProps> = ({
     });
     return defaultAvailability;
   });
+
+  // Load user's existing availability preferences
+  useEffect(() => {
+    const loadAvailability = async () => {
+      if (user) {
+        try {
+          const preferences = await availabilityApi.getByUserId(user.id);
+          const availabilityMap: Record<string, PreferenceLevel> = {};
+
+          preferences.forEach((pref) => {
+            const key = `${pref.day}-${pref.time_slot}`;
+            availabilityMap[key] = pref.preference;
+          });
+
+          // Merge with default values
+          const mergedAvailability: Record<string, PreferenceLevel> = {};
+          days.forEach((day) => {
+            timeSlots.forEach((slot) => {
+              const key = `${day.id}-${slot.id}`;
+              mergedAvailability[key] = availabilityMap[key] || "Neutral";
+            });
+          });
+
+          setAvailability(mergedAvailability);
+        } catch (error) {
+          console.error("Error loading availability:", error);
+        }
+      }
+    };
+
+    loadAvailability();
+  }, [user]);
 
   const [activeTab, setActiveTab] = useState<string>("grid");
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +131,7 @@ const AvailabilitySelector: React.FC<AvailabilitySelectorProps> = ({
     }));
   };
 
-  const validateAndSave = () => {
+  const validateAndSave = async () => {
     // Count slots marked as 'Preferably Yes' or 'Yes'
     const preferredSlotsCount = Object.values(availability).filter(
       (pref) => pref === "Preferably Yes" || pref === "Yes",
@@ -108,8 +144,19 @@ const AvailabilitySelector: React.FC<AvailabilitySelectorProps> = ({
       return;
     }
 
-    setError(null);
-    onSave(availability);
+    if (!user) {
+      setError("User not authenticated");
+      return;
+    }
+
+    try {
+      setError(null);
+      await availabilityApi.upsertPreferences(user.id, availability);
+      onSave(availability);
+    } catch (error) {
+      console.error("Error saving availability:", error);
+      setError("Failed to save availability preferences");
+    }
   };
 
   const getPreferenceColor = (preference: PreferenceLevel): string => {

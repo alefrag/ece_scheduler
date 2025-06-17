@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { coursesApi } from "../api/courses";
 import {
   Card,
   CardContent,
@@ -157,10 +158,56 @@ const CourseForm: React.FC<CourseFormProps> = ({
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Validation logic would go here
-    if (onSubmit) onSubmit(courseData);
+    try {
+      if (initialData.id) {
+        // Update existing course
+        const updatedCourse = await coursesApi.update(initialData.id, {
+          name: courseData.name,
+          code: courseData.code,
+          description: courseData.description,
+          theory_hours: courseData.theoryHours,
+          practice_hours: courseData.practiceHours,
+          lab_hours: courseData.labHours,
+          theory_repetition: courseData.theoryRepetition,
+          practice_repetition: courseData.practiceRepetition,
+          lab_repetition: courseData.labRepetition,
+          required_equipment: courseData.requiredEquipment,
+          study_programs: courseData.studyPrograms,
+          semesters: courseData.semesters,
+          course_group: courseData.courseGroup,
+          enrolled_students: courseData.enrolledStudents,
+          lab_groups: courseData.labGroups,
+          lab_group_size: courseData.labGroupSize,
+        });
+        if (onSubmit) onSubmit(updatedCourse);
+      } else {
+        // Create new course
+        const newCourse = await coursesApi.create({
+          name: courseData.name,
+          code: courseData.code,
+          description: courseData.description,
+          theory_hours: courseData.theoryHours,
+          practice_hours: courseData.practiceHours,
+          lab_hours: courseData.labHours,
+          theory_repetition: courseData.theoryRepetition,
+          practice_repetition: courseData.practiceRepetition,
+          lab_repetition: courseData.labRepetition,
+          required_equipment: courseData.requiredEquipment,
+          study_programs: courseData.studyPrograms,
+          semesters: courseData.semesters,
+          course_group: courseData.courseGroup,
+          enrolled_students: courseData.enrolledStudents,
+          lab_groups: courseData.labGroups,
+          lab_group_size: courseData.labGroupSize,
+        });
+        if (onSubmit) onSubmit(newCourse);
+      }
+    } catch (error) {
+      console.error("Error saving course:", error);
+      // Handle error (show toast, etc.)
+    }
   };
 
   return (

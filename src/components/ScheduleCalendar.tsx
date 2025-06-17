@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { schedulesApi } from "../api/schedules";
+import { scenariosApi } from "../api/scenarios";
+import { useAuth } from "../hooks/useAuth";
+import { Scenario } from "../types/database";
 import {
   Calendar,
   ChevronLeft,
@@ -6,6 +10,8 @@ import {
   Download,
   Filter,
   Printer,
+  Plus,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +27,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ScenarioForm from "./ScenarioForm";
 
 interface ScheduleEvent {
   id: string;
@@ -45,10 +59,38 @@ interface ScheduleCalendarProps {
 }
 
 const ScheduleCalendar = ({
-  events = defaultEvents,
+  events: propEvents,
   onExport = () => {},
   onFilter = () => {},
 }: ScheduleCalendarProps) => {
+  const { user } = useAuth();
+  const [events, setEvents] = useState<ScheduleEvent[]>(propEvents || []);
+  const [loading, setLoading] = useState(true);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
+  const [showScenarioForm, setShowScenarioForm] = useState(false);
+
+  // Load events and scenarios from database
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [scheduleEvents, userScenarios] = await Promise.all([
+          propEvents ? Promise.resolve(propEvents) : schedulesApi.getAll(),
+          user ? scenariosApi.getByUser(user.id) : Promise.resolve([]),
+        ]);
+
+        setEvents(scheduleEvents.length > 0 ? scheduleEvents : defaultEvents);
+        setScenarios(userScenarios);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        setEvents(defaultEvents);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [propEvents, user]);
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filters, setFilters] = useState({
@@ -102,6 +144,18 @@ const ScheduleCalendar = ({
     }
     setFilters(newFilters);
     onFilter(newFilters);
+  };
+
+  const handleScenarioSave = (scenario: Scenario) => {
+    setScenarios((prev) => {
+      const existing = prev.find((s) => s.id === scenario.id);
+      if (existing) {
+        return prev.map((s) => (s.id === scenario.id ? scenario : s));
+      } else {
+        return [...prev, scenario];
+      }
+    });
+    setShowScenarioForm(false);
   };
 
   const formatDateRange = () => {
@@ -158,6 +212,62 @@ const ScheduleCalendar = ({
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xl font-bold">Course Schedule</CardTitle>
         <div className="flex items-center space-x-2">
+          {/* Scenario Management */}
+          {user && (
+            <div className="flex items-center space-x-2 mr-4">
+              <Select
+                value={selectedScenario || ""}
+                onValueChange={setSelectedScenario}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select scenario" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Published Schedule</SelectItem>
+                  {scenarios.map((scenario) => (
+                    <SelectItem key={scenario.id} value={scenario.id}>
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-3 w-3" />
+                        {scenario.name}
+                        <Badge
+                          variant={
+                            scenario.status === "published"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {scenario.status}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Dialog
+                open={showScenarioForm}
+                onOpenChange={setShowScenarioForm}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    New Scenario
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create New Scenario</DialogTitle>
+                  </DialogHeader>
+                  <ScenarioForm
+                    onSave={handleScenarioSave}
+                    onCancel={() => setShowScenarioForm(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+
           <Tabs
             value={view}
             onValueChange={(v) => setView(v as "day" | "week" | "month")}
