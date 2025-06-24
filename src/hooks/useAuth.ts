@@ -7,7 +7,6 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
-  loginWithCAS: () => void;
   logout: () => Promise<void>;
   error: string | null;
 }
@@ -26,10 +25,6 @@ export const useAuthProvider = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const CAS_SERVER_URL =
-    import.meta.env.VITE_CAS_SERVER_URL || "https://sso.uop.gr";
-  const APP_URL = window.location.origin;
 
   useEffect(() => {
     // Check for existing session
@@ -194,21 +189,12 @@ export const useAuthProvider = () => {
     }
   };
 
-  const loginWithCAS = () => {
-    const serviceUrl = encodeURIComponent(`${APP_URL}/auth/cas/callback`);
-    const casLoginUrl = `${CAS_SERVER_URL}/cas/login?service=${serviceUrl}`;
-    window.location.href = casLoginUrl;
-  };
-
   const logout = async () => {
     try {
       setError(null);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-
-      // Also logout from CAS if needed
-      const casLogoutUrl = `${CAS_SERVER_URL}/cas/logout?url=${encodeURIComponent(APP_URL)}`;
-      window.location.href = casLogoutUrl;
+      setUser(null);
     } catch (error: any) {
       setError(error.message);
       throw error;
@@ -220,7 +206,6 @@ export const useAuthProvider = () => {
     loading,
     login,
     register,
-    loginWithCAS,
     logout,
     error,
   };

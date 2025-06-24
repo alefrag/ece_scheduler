@@ -173,8 +173,8 @@ const Registration = () => {
             <div className="bg-blue-50 p-3 rounded-md">
               <p className="text-sm text-blue-800">
                 <strong>Note:</strong> Your account will be created with
-                instructor privileges, allowing you to set availability
-                preferences and create schedule scenarios.
+                educator privileges, allowing you to set availability
+                preferences and view schedules.
               </p>
             </div>
 
@@ -202,7 +202,7 @@ const Registration = () => {
 
             <div className="text-sm text-muted-foreground">
               <p>Need help? Contact IT Support</p>
-              <p className="mt-1">support@uop.gr</p>
+              <p className="mt-1">support@example.com</p>
             </div>
           </div>
         </CardContent>
