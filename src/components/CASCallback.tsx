@@ -64,6 +64,8 @@ const CASCallback = () => {
               email: casUserData.email,
               name: casUserData.name,
               role: casUserData.role,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
             })
             .select()
             .single();
