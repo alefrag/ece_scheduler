@@ -32,7 +32,8 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+
+    if (!email?.trim() || !password) {
       setLocalError("Please enter both email and password");
       return;
     }
@@ -40,9 +41,12 @@ const Login = () => {
     try {
       setLoading(true);
       setLocalError(null);
-      await login(email, password);
+      setSuccessMessage(null);
+
+      await login(email.trim(), password);
     } catch (error: any) {
-      setLocalError(error.message);
+      console.error("Login error in component:", error);
+      setLocalError(error.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }

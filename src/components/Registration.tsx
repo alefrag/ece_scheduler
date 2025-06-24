@@ -37,7 +37,11 @@ const Registration = () => {
     setLocalError(null);
 
     // Validation
-    if (!formData.name || !formData.email || !formData.password) {
+    if (
+      !formData.name?.trim() ||
+      !formData.email?.trim() ||
+      !formData.password
+    ) {
       setLocalError("Please fill in all required fields");
       return;
     }
@@ -52,9 +56,20 @@ const Registration = () => {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setLocalError("Please enter a valid email address");
+      return;
+    }
+
     try {
       setLoading(true);
-      await register(formData.email, formData.password, formData.name);
+      await register(
+        formData.email.trim(),
+        formData.password,
+        formData.name.trim(),
+      );
       setSuccess(true);
 
       // Redirect to login after successful registration
@@ -62,12 +77,13 @@ const Registration = () => {
         navigate("/login", {
           state: {
             message:
-              "Registration successful! Please check your email to verify your account.",
+              "Registration successful! Please check your email to verify your account before signing in.",
           },
         });
       }, 2000);
     } catch (error: any) {
-      setLocalError(error.message);
+      console.error("Registration error in component:", error);
+      setLocalError(error.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
