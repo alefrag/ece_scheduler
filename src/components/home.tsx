@@ -28,6 +28,7 @@ import CourseForm from "./CourseForm";
 import AvailabilitySelector from "./AvailabilitySelector";
 import ResourceManager from "./ResourceManager";
 import ScenarioForm from "./ScenarioForm";
+import TimelineView from "./TimelineView";
 
 type UserRole = "administrator" | "schedule_manager" | "educator";
 
@@ -178,6 +179,15 @@ const Home = () => {
           )}
 
           <Button
+            variant={activeTab === "timeline" ? "default" : "ghost"}
+            className="w-full justify-start"
+            onClick={() => setActiveTab("timeline")}
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            Timeline
+          </Button>
+
+          <Button
             variant={activeTab === "settings" ? "default" : "ghost"}
             className="w-full justify-start"
             onClick={() => setActiveTab("settings")}
@@ -230,6 +240,7 @@ const Home = () => {
             {activeTab === "availability" && "Availability Preferences"}
             {activeTab === "resources" && "Resource Management"}
             {activeTab === "users" && "User Management"}
+            {activeTab === "timeline" && "Resource Timeline"}
             {activeTab === "settings" && "Settings"}
           </h1>
           <p className="text-muted-foreground">
@@ -242,6 +253,8 @@ const Home = () => {
               "Set your weekly availability preferences"}
             {activeTab === "resources" && "Manage classrooms and laboratories"}
             {activeTab === "users" && "Manage system users and permissions"}
+            {activeTab === "timeline" &&
+              "Interactive Gantt chart view of resource assignments"}
             {activeTab === "settings" && "Configure system settings"}
           </p>
         </header>
@@ -605,6 +618,8 @@ const Home = () => {
             </Tabs>
           </div>
         )}
+
+        {activeTab === "timeline" && <TimelineView />}
 
         {activeTab === "settings" && (
           <div className="bg-card rounded-lg border shadow-sm p-6">
