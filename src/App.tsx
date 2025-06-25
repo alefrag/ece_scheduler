@@ -3,6 +3,7 @@ import { useRoutes, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/home";
 import Dashboard from "./components/Dashboard";
 import UserManagement from "./components/UserManagement";
+import TimelineView from "./components/TimelineView";
 import Login from "./components/Login";
 import Registration from "./components/Registration";
 import { AuthProvider } from "./components/AuthProvider";
@@ -140,7 +141,7 @@ function App() {
               path="/timeline"
               element={
                 <ProtectedRoute>
-                  <Home />
+                  <TimelineView />
                 </ProtectedRoute>
               }
             />
