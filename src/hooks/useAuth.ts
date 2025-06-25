@@ -68,6 +68,11 @@ export const useAuthProvider = () => {
   const fetchUserProfile = async (userId: string) => {
     try {
       setError(null);
+
+      if (!userId) {
+        throw new Error("User ID is required");
+      }
+
       const { data, error } = await supabase
         .from("users")
         .select("*")
@@ -96,22 +101,28 @@ export const useAuthProvider = () => {
               updated_at: new Date().toISOString(),
             };
 
-            const { data: newUser, error: createError } = await supabase
-              .from("users")
-              .insert(newUserData)
-              .select()
-              .single();
+            try {
+              const { data: newUser, error: createError } = await supabase
+                .from("users")
+                .insert(newUserData)
+                .select()
+                .single();
 
-            if (createError) {
-              console.error("Error creating user profile:", createError);
-              // Fallback: create a basic user object for the session
+              if (createError) {
+                console.error("Error creating user profile:", createError);
+                // Fallback: create a basic user object for the session
+                setUser(newUserData);
+                return;
+              }
+
+              console.log("User profile created successfully");
+              setUser(newUser);
+              return;
+            } catch (insertError) {
+              console.error("Failed to insert user profile:", insertError);
               setUser(newUserData);
               return;
             }
-
-            console.log("User profile created successfully");
-            setUser(newUser);
-            return;
           }
         }
 
@@ -119,8 +130,12 @@ export const useAuthProvider = () => {
         throw new Error(`Failed to fetch user profile: ${error.message}`);
       }
 
-      setUser(data);
-      console.log("User profile loaded successfully");
+      if (data) {
+        setUser(data);
+        console.log("User profile loaded successfully");
+      } else {
+        throw new Error("No user data returned");
+      }
     } catch (error: any) {
       console.error("Error in fetchUserProfile:", error);
       setError(error.message || "Failed to fetch user profile");

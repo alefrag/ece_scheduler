@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
+import { supabase } from "../lib/supabaseClient";
+import { User } from "../types/database";
 import { coursesApi } from "../api/courses";
 import { classroomsApi, laboratoriesApi } from "../api/resources";
 import { schedulesApi } from "../api/schedules";
@@ -14,6 +15,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Calendar,
   Clock,
   Users,
@@ -21,7 +29,7 @@ import {
   School,
   LayoutGrid,
   Settings,
-  LogOut,
+  UserCheck,
 } from "lucide-react";
 import ScheduleCalendar from "./ScheduleCalendar";
 import CourseForm from "./CourseForm";
@@ -30,18 +38,9 @@ import ResourceManager from "./ResourceManager";
 import ScenarioForm from "./ScenarioForm";
 import TimelineView from "./TimelineView";
 
-type UserRole = "administrator" | "schedule_manager" | "educator";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  avatarUrl?: string;
-}
-
 const Home = () => {
-  const { user: currentUser, logout } = useAuth();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [dashboardData, setDashboardData] = useState({
     courses: [],
@@ -50,6 +49,30 @@ const Home = () => {
     scheduleEvents: [],
   });
   const [loading, setLoading] = useState(true);
+
+  // Load users from database
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const { data: users, error } = await supabase
+          .from("users")
+          .select("*")
+          .order("name");
+
+        if (error) throw error;
+
+        setAvailableUsers(users || []);
+        // Set first user as default if no user is selected
+        if (!currentUser && users && users.length > 0) {
+          setCurrentUser(users[0]);
+        }
+      } catch (error) {
+        console.error("Error loading users:", error);
+      }
+    };
+
+    loadUsers();
+  }, []);
 
   // Load dashboard data
   useEffect(() => {
@@ -76,16 +99,13 @@ const Home = () => {
       }
     };
 
-    if (currentUser) {
-      loadDashboardData();
-    }
-  }, [currentUser]);
+    loadDashboardData();
+  }, []);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Error logging out:", error);
+  const handleUserChange = (userId: string) => {
+    const selectedUser = availableUsers.find((user) => user.id === userId);
+    if (selectedUser) {
+      setCurrentUser(selectedUser);
     }
   };
 
@@ -198,33 +218,56 @@ const Home = () => {
         </nav>
 
         <div className="mt-auto pt-4 border-t">
-          {/* User role display */}
+          {/* User Selection */}
           <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-2">
-              Role:{" "}
-              {currentUser.role
-                .replace("_", " ")
-                .replace(/\b\w/g, (l) => l.toUpperCase())}
-            </p>
+            <label className="text-xs text-muted-foreground mb-2 block">
+              Select User:
+            </label>
+            <Select
+              value={currentUser?.id || ""}
+              onValueChange={handleUserChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a user" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableUsers.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-4 w-4" />
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {user.role
+                            .replace("_", " ")
+                            .replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Avatar>
-              <AvatarImage src={currentUser.avatar_url} />
-              <AvatarFallback>
-                {currentUser.name.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium truncate">{currentUser.name}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {currentUser.email}
-              </p>
+          {currentUser && (
+            <div className="flex items-center gap-2">
+              <Avatar>
+                <AvatarImage src={currentUser.avatar_url} />
+                <AvatarFallback>
+                  {currentUser.name.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">
+                  {currentUser.name}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {currentUser.email}
+                </p>
+              </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -619,7 +662,11 @@ const Home = () => {
           </div>
         )}
 
-        {activeTab === "timeline" && <TimelineView />}
+        {activeTab === "timeline" && (
+          <div className="bg-card rounded-lg border shadow-sm">
+            <TimelineView />
+          </div>
+        )}
 
         {activeTab === "settings" && (
           <div className="bg-card rounded-lg border shadow-sm p-6">

@@ -38,6 +38,13 @@ const Login = () => {
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setLocalError("Please enter a valid email address");
+      return;
+    }
+
     try {
       setLoading(true);
       setLocalError(null);
@@ -46,7 +53,8 @@ const Login = () => {
       await login(email.trim(), password);
     } catch (error: any) {
       console.error("Login error in component:", error);
-      setLocalError(error.message || "Login failed. Please try again.");
+      const errorMessage = error.message || "Login failed. Please try again.";
+      setLocalError(errorMessage);
     } finally {
       setLoading(false);
     }

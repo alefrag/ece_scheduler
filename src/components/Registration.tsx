@@ -36,13 +36,19 @@ const Registration = () => {
     e.preventDefault();
     setLocalError(null);
 
-    // Validation
+    // Enhanced validation
     if (
       !formData.name?.trim() ||
       !formData.email?.trim() ||
-      !formData.password
+      !formData.password ||
+      !formData.confirmPassword
     ) {
       setLocalError("Please fill in all required fields");
+      return;
+    }
+
+    if (formData.name.trim().length < 2) {
+      setLocalError("Name must be at least 2 characters long");
       return;
     }
 
@@ -56,7 +62,7 @@ const Registration = () => {
       return;
     }
 
-    // Email validation
+    // Enhanced email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
       setLocalError("Please enter a valid email address");

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { schedulesApi } from "../api/schedules";
 import { scenariosApi } from "../api/scenarios";
 import { useAuth } from "../hooks/useAuth";
+import { AuthProvider } from "./AuthProvider";
 import { Scenario } from "../types/database";
 import {
   Calendar,
@@ -58,7 +59,7 @@ interface ScheduleCalendarProps {
   onFilter?: (filters: any) => void;
 }
 
-const ScheduleCalendar = ({
+const ScheduleCalendarContent = ({
   events: propEvents,
   onExport = () => {},
   onFilter = () => {},
@@ -864,5 +865,13 @@ const defaultEvents: ScheduleEvent[] = [
     semester: "2nd",
   },
 ];
+
+const ScheduleCalendar = (props: ScheduleCalendarProps) => {
+  return (
+    <AuthProvider>
+      <ScheduleCalendarContent {...props} />
+    </AuthProvider>
+  );
+};
 
 export default ScheduleCalendar;

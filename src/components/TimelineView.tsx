@@ -280,13 +280,18 @@ const TimelineView = () => {
         },
       };
 
-      // Create new timeline
-      timelineInstance.current = new Timeline(
-        timelineRef.current,
-        items,
-        groups,
-        options,
-      );
+      // Create new timeline with error handling
+      try {
+        timelineInstance.current = new Timeline(
+          timelineRef.current,
+          items,
+          groups,
+          options,
+        );
+      } catch (timelineError) {
+        console.error("Timeline creation failed:", timelineError);
+        throw timelineError;
+      }
 
       // Set initial view
       const now = new Date();
@@ -302,17 +307,26 @@ const TimelineView = () => {
     }
   }, [resources, destroyTimeline]);
 
+  const safeCreateTimeline = useCallback(() => {
+    try {
+      return initializeTimeline();
+    } catch (error) {
+      console.error("Failed to create timeline:", error);
+      return null;
+    }
+  }, [initializeTimeline]);
+
   useEffect(() => {
     // Add a small delay to ensure DOM is ready
     const timeoutId = setTimeout(() => {
-      initializeTimeline();
+      safeCreateTimeline();
     }, 150);
 
     return () => {
       clearTimeout(timeoutId);
       destroyTimeline();
     };
-  }, [initializeTimeline, destroyTimeline]);
+  }, [safeCreateTimeline, destroyTimeline]);
 
   // Cleanup on unmount
   useEffect(() => {
