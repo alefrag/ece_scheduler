@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Timeline } from "vis-timeline/standalone";
 import { DataSet } from "vis-data";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,16 @@ interface Task {
   end: Date;
   group: string;
   taskType: "theory" | "practice" | "lab";
+  className: string;
+  title: string;
+}
+
+interface TimelineItem {
+  id: string;
+  content: string;
+  start: Date;
+  end: Date;
+  group: string;
   className: string;
   title: string;
 }
@@ -147,109 +157,183 @@ const TimelineView = () => {
     );
   };
 
-  const initializeTimeline = () => {
-    if (!timelineRef.current) return;
-
-    // Destroy existing timeline first
+  const destroyTimeline = useCallback(() => {
     if (timelineInstance.current) {
       try {
         timelineInstance.current.destroy();
       } catch (error) {
         console.warn("Error destroying timeline:", error);
+      } finally {
+        timelineInstance.current = null;
       }
-      timelineInstance.current = null;
     }
+  }, []);
+
+  const initializeTimeline = useCallback(() => {
+    if (!timelineRef.current) {
+      console.warn("Timeline container not available");
+      return;
+    }
+
+    // Destroy existing timeline first
+    destroyTimeline();
 
     // Filter selected resources
     const selectedResources = resources.filter((r) => r.selected);
 
     // Don't create timeline if no resources are selected
     if (selectedResources.length === 0) {
+      console.log("No resources selected, skipping timeline creation");
       return;
     }
 
-    // Create groups (resources)
-    const groups = new DataSet(
-      selectedResources.map((resource) => ({
-        id: resource.id,
-        content: `${getResourceIcon(resource.type)} ${resource.name}`,
-        className: `resource-${resource.type}`,
-      })),
-    );
-
-    // Filter tasks for selected resources
-    const filteredTasks = mockTasks.filter((task) =>
-      selectedResources.some((resource) => resource.id === task.group),
-    );
-
-    // Create items (tasks) - remove the custom type property that causes issues
-    const timelineItems = filteredTasks.map(({ taskType, ...task }) => task);
-    const items = new DataSet(timelineItems);
-
-    // Timeline options
-    const options = {
-      groupOrder: "content",
-      editable: false,
-      selectable: true,
-      stack: false,
-      showCurrentTime: true,
-      zoomable: true,
-      moveable: true,
-      orientation: "top",
-      height: "400px",
-      margin: {
-        item: 10,
-        axis: 5,
-      },
-      format: {
-        minorLabels: {
-          hour: "HH:mm",
-          day: "DD",
-        },
-        majorLabels: {
-          hour: "ddd DD MMMM",
-          day: "MMMM YYYY",
-        },
-      },
-    };
-
     try {
-      // Create new timeline
-      timelineInstance.current = new Timeline(
-        timelineRef.current,
-        items,
-        groups,
-        options,
-      );
+      // Create groups (resources) with proper validation
+      const groupsData = selectedResources
+        .map((resource) => {
+          if (!resource.id || !resource.name || !resource.type) {
+            console.warn("Invalid resource data:", resource);
+            return null;
+          }
+          return {
+            id: String(resource.id),
+            content: `${getResourceIcon(resource.type)} ${resource.name}`,
+            className: `resource-${resource.type}`,
+          };
+        })
+        .filter(Boolean);
+
+      if (groupsData.length === 0) {
+        console.warn("No valid groups to create timeline");
+        return;
+      }
+
+      const groups = new DataSet(groupsData);
+
+      // Filter tasks for selected resources
+      const filteredTasks = mockTasks.filter((task) => {
+        if (!task.id || !task.group) {
+          console.warn("Invalid task data:", task);
+          return false;
+        }
+        return selectedResources.some(
+          (resource) => String(resource.id) === String(task.group),
+        );
+      });
+
+      // Create items (tasks) - sanitize data and remove custom properties
+      const timelineItems: TimelineItem[] = filteredTasks
+        .map((task) => {
+          const sanitizedTask: TimelineItem = {
+            id: String(task.id),
+            content: String(task.content || "Untitled"),
+            start: new Date(task.start),
+            end: new Date(task.end),
+            group: String(task.group),
+            className: String(task.className || ""),
+            title: String(task.title || task.content || "Untitled"),
+          };
+
+          // Validate dates
+          if (
+            isNaN(sanitizedTask.start.getTime()) ||
+            isNaN(sanitizedTask.end.getTime())
+          ) {
+            console.warn("Invalid dates in task:", task);
+            return null;
+          }
+
+          return sanitizedTask;
+        })
+        .filter((item): item is TimelineItem => item !== null);
+
+      if (timelineItems.length === 0) {
+        console.log("No valid timeline items to display");
+      }
+
+      const items = new DataSet(timelineItems);
+
+      // Timeline options
+      const options = {
+        groupOrder: "content",
+        editable: false,
+        selectable: true,
+        stack: false,
+        showCurrentTime: true,
+        zoomable: true,
+        moveable: true,
+        orientation: "top" as const,
+        height: "400px",
+        margin: {
+          item: 10,
+          axis: 5,
+        },
+        format: {
+          minorLabels: {
+            hour: "HH:mm",
+            day: "DD",
+          },
+          majorLabels: {
+            hour: "ddd DD MMMM",
+            day: "MMMM YYYY",
+          },
+        },
+      };
+
+      // Create new timeline with error handling
+      try {
+        timelineInstance.current = new Timeline(
+          timelineRef.current,
+          items,
+          groups,
+          options,
+        );
+      } catch (timelineError) {
+        console.error("Timeline creation failed:", timelineError);
+        throw timelineError;
+      }
 
       // Set initial view
       const now = new Date();
       const start = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 1 day ago
       const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
       timelineInstance.current.setWindow(start, end);
+
+      console.log("Timeline initialized successfully");
     } catch (error) {
       console.error("Error creating timeline:", error);
+      // Clean up on error
+      destroyTimeline();
     }
-  };
+  }, [resources, destroyTimeline]);
+
+  const safeCreateTimeline = useCallback(() => {
+    try {
+      return initializeTimeline();
+    } catch (error) {
+      console.error("Failed to create timeline:", error);
+      return null;
+    }
+  }, [initializeTimeline]);
 
   useEffect(() => {
     // Add a small delay to ensure DOM is ready
     const timeoutId = setTimeout(() => {
-      initializeTimeline();
-    }, 100);
+      safeCreateTimeline();
+    }, 150);
 
     return () => {
       clearTimeout(timeoutId);
-      if (timelineInstance.current) {
-        try {
-          timelineInstance.current.destroy();
-        } catch (error) {
-          console.warn("Error destroying timeline in cleanup:", error);
-        }
-        timelineInstance.current = null;
-      }
+      destroyTimeline();
     };
-  }, [resources]);
+  }, [safeCreateTimeline, destroyTimeline]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      destroyTimeline();
+    };
+  }, [destroyTimeline]);
 
   const handleViewChange = (view: "day" | "week" | "month") => {
     setSelectedView(view);

@@ -32,17 +32,29 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+
+    if (!email?.trim() || !password) {
       setLocalError("Please enter both email and password");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setLocalError("Please enter a valid email address");
       return;
     }
 
     try {
       setLoading(true);
       setLocalError(null);
-      await login(email, password);
+      setSuccessMessage(null);
+
+      await login(email.trim(), password);
     } catch (error: any) {
-      setLocalError(error.message);
+      console.error("Login error in component:", error);
+      const errorMessage = error.message || "Login failed. Please try again.";
+      setLocalError(errorMessage);
     } finally {
       setLoading(false);
     }
