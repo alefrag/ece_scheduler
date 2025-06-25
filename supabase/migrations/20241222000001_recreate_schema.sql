@@ -1,5 +1,10 @@
--- Course Timetabling System Database Schema
--- Recreated from scratch with proper user and role management
+-- Drop existing tables and policies
+DROP TABLE IF EXISTS schedule_events CASCADE;
+DROP TABLE IF EXISTS availability_preferences CASCADE;
+DROP TABLE IF EXISTS laboratories CASCADE;
+DROP TABLE IF EXISTS classrooms CASCADE;
+DROP TABLE IF EXISTS courses CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -8,18 +13,19 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
+  email TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('administrator', 'schedule_manager', 'educator')),
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT unique_email UNIQUE (email)
 );
 
 -- Courses table
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  code TEXT UNIQUE NOT NULL,
+  code TEXT NOT NULL,
   description TEXT,
   theory_hours INTEGER DEFAULT 0,
   practice_hours INTEGER DEFAULT 0,
@@ -35,7 +41,8 @@ CREATE TABLE IF NOT EXISTS courses (
   lab_groups INTEGER DEFAULT 1,
   lab_group_size INTEGER DEFAULT 20,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT unique_code UNIQUE (code)
 );
 
 -- Classrooms table
@@ -125,12 +132,18 @@ INSERT INTO courses (name, code, description, theory_hours, practice_hours, lab_
   ('Operating Systems', 'CS303', 'Operating system concepts and design', 3, 2, 0, '{"Computer Science"}', '{4}', 'Core Courses', 42)
 ON CONFLICT (code) DO NOTHING;
 
+-- Add unique constraint for classrooms name
+ALTER TABLE classrooms ADD CONSTRAINT unique_classroom_name UNIQUE (name);
+
 -- Insert sample classrooms
 INSERT INTO classrooms (name, capacity, equipment) VALUES
   ('Room A101', 120, '[{"id": "1", "name": "Projector"}, {"id": "2", "name": "Computer"}]'),
   ('Room B202', 80, '[{"id": "1", "name": "Projector"}, {"id": "3", "name": "Whiteboard"}]'),
   ('Room C303', 60, '[{"id": "3", "name": "Whiteboard"}]')
 ON CONFLICT (name) DO NOTHING;
+
+-- Add unique constraint for laboratories name
+ALTER TABLE laboratories ADD CONSTRAINT unique_laboratory_name UNIQUE (name);
 
 -- Insert sample laboratories
 INSERT INTO laboratories (name, capacity, equipment) VALUES

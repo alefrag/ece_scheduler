@@ -115,7 +115,7 @@ const UserManagement = () => {
         .from("users")
         .select("id")
         .eq("email", formData.email.trim())
-        .single();
+        .maybeSingle();
 
       if (existingUser) {
         setError("A user with this email already exists");
@@ -123,12 +123,9 @@ const UserManagement = () => {
       }
 
       const newUser = {
-        id: crypto.randomUUID(),
         name: formData.name.trim(),
         email: formData.email.trim(),
         role: formData.role,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
       const { error } = await supabase.from("users").insert(newUser);
@@ -159,7 +156,7 @@ const UserManagement = () => {
         .select("id")
         .eq("email", formData.email.trim())
         .neq("id", selectedUser.id)
-        .single();
+        .maybeSingle();
 
       if (existingUser) {
         setError("A user with this email already exists");
@@ -172,7 +169,6 @@ const UserManagement = () => {
           name: formData.name.trim(),
           email: formData.email.trim(),
           role: formData.role,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", selectedUser.id);
 
